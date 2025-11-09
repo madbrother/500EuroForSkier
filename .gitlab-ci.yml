@@ -1,4 +1,4 @@
-﻿variables:
+variables:
   RELEASE_NAME: "500EuroForSkier"
   AUTHOR: "bushtail"
   DLL_NAME: "500EuroForSkier.dll"
