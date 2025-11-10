@@ -1,5 +1,7 @@
-﻿using SPTarkov.DI.Annotations;
+﻿using JetBrains.Annotations;
+using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
+using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Enums;
 using SPTarkov.Server.Core.Models.Utils;
@@ -7,10 +9,12 @@ using SPTarkov.Server.Core.Servers;
 
 namespace EuroForSkier;
 
-[Injectable(TypePriority = OnLoadOrder.PostDBModLoader + 1)]
+[UsedImplicitly]
+[Injectable(TypePriority = OnLoadOrder.PostDBModLoader + 10)]
 public class EuroForSkier(DatabaseServer databaseServer, ISptLogger<EuroForSkier> logger) : IOnLoad
 {
     private double? _exchangeRate;
+    private readonly MongoId _euroTradeId = new("686e340e6c2a18ed6b0e8c8c");
     public Task OnLoad()
     {
         var traders = databaseServer.GetTables().Traders;
@@ -34,11 +38,7 @@ public class EuroForSkier(DatabaseServer databaseServer, ISptLogger<EuroForSkier
     private void GetExchangeRate(Trader trader)
     {
         var barterScheme = trader.Assort.BarterScheme;
-        foreach (var scheme in barterScheme.SelectMany(barter => barter.Value.SelectMany(schemes => schemes.Where(scheme => scheme.Template == ItemTpl.MONEY_EUROS))))
-        {
-            if (scheme.Count != null)
-                _exchangeRate = scheme.Count.Value;
-        }
+        _exchangeRate = barterScheme[_euroTradeId][0][0].Count;
         logger.Info($"ExchangeRate: {_exchangeRate}");
     }
 
@@ -49,12 +49,13 @@ public class EuroForSkier(DatabaseServer databaseServer, ISptLogger<EuroForSkier
 
     private void ConvertBarterCurrency(Trader trader)
     {
-        foreach (var scheme in from schemePair in trader.Assort.BarterScheme from schemes in schemePair.Value from scheme in schemes where scheme.Template == ItemTpl.MONEY_ROUBLES select scheme)
+        foreach (var pair in trader.Assort.BarterScheme)
         {
-            if (scheme.Count == null) continue;
-            var orig = scheme.Count.Value;
-            scheme.Count = ExchangeCurrency(orig);
-            scheme.Template = ItemTpl.MONEY_EUROS;
+            if (pair.Key == _euroTradeId) continue;
+            if (pair.Value[0][0].Template != ItemTpl.MONEY_ROUBLES) continue;
+            var originalItemCost = pair.Value[0][0].Count;
+            pair.Value[0][0].Count = ExchangeCurrency(originalItemCost);
+            pair.Value[0][0].Template = ItemTpl.MONEY_EUROS;
         }
     }
 
