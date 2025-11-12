@@ -25,6 +25,7 @@ public class EuroForSkier(DatabaseServer databaseServer, ISptLogger<EuroForSkier
         }
         GetExchangeRate(skier);
         skier.Base.Currency = CurrencyType.EUR;
+        ConvertLoyaltyCurrency(skier);
         ConvertBarterCurrency(skier);
         var quests = databaseServer.GetTables().Templates.Quests;
         foreach (var quest in quests.Where(quest => quest.Value.TraderId == Traders.SKIER))
@@ -45,6 +46,11 @@ public class EuroForSkier(DatabaseServer databaseServer, ISptLogger<EuroForSkier
     private double? ExchangeCurrency(double? amt)
     {
         return amt / _exchangeRate;
+    }
+
+    private long? ExchangeCurrency(long? amt)
+    {
+        return amt / (long?)_exchangeRate;
     }
 
     private void ConvertBarterCurrency(Trader trader)
@@ -72,6 +78,16 @@ public class EuroForSkier(DatabaseServer databaseServer, ISptLogger<EuroForSkier
                 reward.Value = ExchangeCurrency(original);
                 item.Template = ItemTpl.MONEY_EUROS;
             }
+        }
+    }
+
+    private void ConvertLoyaltyCurrency(Trader trader)
+    {
+        if (trader.Base.LoyaltyLevels == null) return;
+        foreach (var level in trader.Base.LoyaltyLevels)
+        {
+            var original = level.MinSalesSum;
+            level.MinSalesSum = ExchangeCurrency(original);
         }
     }
 }
