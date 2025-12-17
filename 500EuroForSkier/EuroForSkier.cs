@@ -45,12 +45,16 @@ public class EuroForSkier(DatabaseServer databaseServer, ISptLogger<EuroForSkier
 
     private double? ExchangeCurrency(double? amt)
     {
-        return amt / _exchangeRate;
+        var exchangedCurrency = amt / _exchangeRate;
+        if(exchangedCurrency is null) return amt;
+        return Math.Floor(exchangedCurrency.Value);
     }
 
     private long? ExchangeCurrency(long? amt)
     {
-        return amt / (long?)_exchangeRate;
+        var exchangedCurrency = amt / _exchangeRate;
+        if(exchangedCurrency is null) return amt;
+        return (long)Math.Floor(exchangedCurrency.Value);
     }
 
     private void ConvertBarterCurrency(Trader trader)
@@ -74,9 +78,13 @@ public class EuroForSkier(DatabaseServer databaseServer, ISptLogger<EuroForSkier
             foreach (var item in reward.Items)
             {
                 if (item.Template != ItemTpl.MONEY_ROUBLES) continue;
-                var original = reward.Value;
-                reward.Value = ExchangeCurrency(original);
                 item.Template = ItemTpl.MONEY_EUROS;
+
+                var newValue = ExchangeCurrency(reward.Value);
+                reward.Value = newValue;
+
+                if (item.Upd == null) continue;
+                item.Upd.StackObjectsCount = newValue;
             }
         }
     }
